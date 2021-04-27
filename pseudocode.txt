@@ -1,0 +1,22 @@
+ETC.
+# use macros for error checking
+# testing with telnet? -> (deprecated, class 4/26)
+
+__Program__
+
+1. Takes one (1) argument (argv[1]): which port to listen to.
+# use netstat to check for free ports  (select port between 5000 and 65536)
+
+2. Main thread:
+# begins program and starts listening to connection requests on the port.
+# If it receives a connection request, it will open a new thread to handle it.
+
+3. Worker thread:
+# need a thread exclusive boolean to signal if thread should stay open or be closed.
+# opens when it receives a new connect request.
+# thread terminates once the connection is closed.
+
+4. Temporary Database
+# Hashtable (or hashmap technically?) of queues for collisions.
+# How to make thread safe? lock each bucket?
+# How to check if no other thread is writing?
