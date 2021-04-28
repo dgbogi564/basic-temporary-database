@@ -4,7 +4,7 @@ CPPFLAGS := -ggdb
 LIBS := -pthread -lm
 
 SOURCEDIR := src
-BUILDDIR := build
+BUILDDIR := bu
 
 EXECUTABLE := server
 SOURCES:= $(wildcard $(SOURCEDIR)/*.c)
