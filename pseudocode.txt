@@ -18,5 +18,7 @@ __Program__
 
 4. Temporary Database
 # Hashtable (or hashmap technically?) of queues for collisions.
-# How to make thread safe? lock each bucket?
+# How to make thread safe? lock each bucket.
 # How to check if no other thread is writing?
+# Need a reliable way to lock entire hashtable for resizing while also not preventing concurrent write and reads.
+# > have to lock every bucket in the table before resizing

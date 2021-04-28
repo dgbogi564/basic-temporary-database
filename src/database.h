@@ -10,6 +10,8 @@
 #ifndef P3_DATABASE_H
 #define P3_DATABASE_H
 
+#include <stdbool.h>
+
 typedef struct node_ {
 	char *key, *data;
 	struct node_ *next;
@@ -23,8 +25,8 @@ typedef struct linkedList_ {
 } linkedList_;
 
 typedef struct hashTable_ {
-	int size, capacity;
-	unsigned long hash;
+	int size, capacity, num_working;
+	volatile bool wr_ready;
 	linkedList_ **table;
 } hashTable_;
 
@@ -33,9 +35,9 @@ hashTable_* hashTable_init();
 
 void insertData(hashTable_ * hashTable, char *key, char *data);
 
-char* getData(hashTable_ *hasTable, char *key);
+char* getData(hashTable_ *hashTable, char *key);
 
-int removeData(hashTable_ *hasTable, char * key);
+int removeData(hashTable_ *hashTable, char * key);
 
 void hashTable_destroy(hashTable_ *hasTable);
 

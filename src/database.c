@@ -1,11 +1,12 @@
 #include "database.h"
 
 #include <string.h>
+#include <unistd.h>
 
 #include "macros.h"
 
 #ifndef HASH
-#define HASH 10
+#define HASH 3
 #endif
 
 // TODO Make sure to check if any function returns NULL or 1 and send the appropriate error code to the client and sever the connection if needed.
@@ -13,56 +14,59 @@
 
 /* ============================ LINKEDLIST & NODES =============================== */
 
-
-node_* node_init(char *key, char *data) {
+node_ *node_init(char *key, char *data) {
 	node_ *node = safe_malloc(__func__, sizeof(node_));
 	node->key = key;
 	node->data = data;
+	node->next = NULL;
 	return node;
 }
 
-void node_insert(linkedList_ *linkedList, char *key, char *data) {
-	pthread_mutex_lock(&linkedList->lock);
-
-	if (linkedList->head == NULL)
-		linkedList->head = linkedList->rear = node_init(key, data);
-	else {
-		node_ *node = linkedList->head, *prev = NULL;
-		int retval;
-		while (node != NULL && (retval = strcmp(key, node->key)) > 0) {
-			prev = node;
-			node = node->next;
-		}
-
-		if (prev == NULL) {
-			node_ *temp = linkedList->head;
-			linkedList->head = node_init(key, data);
-			linkedList->head->next = temp;
-		} else {
-			if (node != NULL) {
-				if (retval) {
-					prev->next = node_init(key, data);
-					prev->next->next = node;
-				} else
-					node->data = data;
-			} else
-				linkedList->rear = linkedList->rear->next = node_init(key, data);
-		}
-	}
-
-	pthread_mutex_unlock(&linkedList->lock);
-}
-
-linkedList_* linkedList_init() {
+linkedList_ *linkedList_init() {
 	linkedList_ *linkedList = safe_malloc(__func__, sizeof(linkedList_));
-	linkedList->head = NULL;
 	linkedList->size = 0;
+	linkedList->head = NULL;
+	linkedList->rear = NULL;
 	if (pthread_mutex_init(&linkedList->lock, NULL)) {
 		ERR("linkedList_init(): Failed to initialize mutex\n");
 		exit(EXIT_FAILURE);
 	}
-
 	return linkedList;
+}
+
+void node_insert(linkedList_ *linkedList, node_ *newNode) {
+	pthread_mutex_lock(&linkedList->lock);
+
+	node_ *inFront = linkedList->head, *prev = NULL;
+	int retval;
+
+	// Find the two nodes the new node should be placed between.
+	while (inFront != NULL && (retval = strcmp(newNode->key, inFront->key)) > 0) {
+		prev = inFront;
+		inFront = inFront->next;
+	}
+
+	if (prev == NULL) {
+		// The list is empty or the new node is smaller than any node in the list
+		newNode->next = linkedList->head;
+		linkedList->head = newNode;
+	} else {
+		if (inFront != NULL) {
+			if (retval) {
+				// The new node belongs in the middle of the list
+				prev->next = newNode;
+				newNode->next = inFront;
+			} else {
+				// The new node already exists and just needs to update it's data
+				inFront->data = newNode->data;
+				free(newNode);
+			}
+		} else
+			// The new node is larger than any node in the list
+			linkedList->rear = linkedList->rear->next = newNode;
+	}
+
+	pthread_mutex_unlock(&linkedList->lock);
 }
 
 void linkedList_destroy(linkedList_ *linkedList) {
@@ -76,125 +80,178 @@ void linkedList_destroy(linkedList_ *linkedList) {
 		ERR("linkedList_destroy(): Failed to destroy mutex\n");
 		exit(EXIT_FAILURE);
 	}
-
 	free(linkedList);
 }
 
 /* ================================== HASHTABLE ================================= */
 
-
-hashTable_* hashTable_init() {
+hashTable_ *hashTable_init() {
 	hashTable_ *hashTable = safe_malloc(__func__, sizeof(hashTable_));
 	hashTable->size = 0;
 	hashTable->capacity = 13;
-	linkedList_ **table = hashTable->table = safe_malloc(__func__, sizeof(linkedList_ *)*13;
+	hashTable->num_working = 0;
+	hashTable->wr_ready = true;
+	hashTable->table = safe_malloc(__func__, sizeof(linkedList_ *) * 13);
 	for (int i = 0; i < 13; ++i)
-		table[i] = NULL;
+		hashTable->table[i] = NULL;
 
 	return hashTable;
 }
 
-int getIndex(int size, char *key) {
+int hash(int size, char *key) {
 	int hash;
 	for (int i = 0; i < strlen(key); ++i)
-		hash = HASH*31 + key[i];
+		hash = HASH * 31 + key[i];
 
-	return hash%size;
+	return hash % size;
 }
 
-int findNextPrime(size_t num) {
-	if(num < 2) return num;
+int nextPrime(int n) {
+	if (n < 2) return n;
 
-	int isPrime = 0;
+	bool isPrime = false;
 	while (!isPrime) {
-		isPrime = 1;
-		for (int i = 2; i < num/2; ++i) {
-			if (num % i == 0) {
+		isPrime = true;
+		for (int i = 2; i < n / 2; ++i) {
+			if (n % i == 0) {
 				isPrime = 0;
-				++num;
+				n++;
 				break;
 			}
 		}
 	}
 
-	return num;
+	return n;
 }
 
-void resizeTable(hashTable_ *hashTable) { // TODO need to make hashTable lock
-	int size = sizeof(linkedList_ *)*findNextPrime(hashTable->size*2);
-	linkedList_ **newTable = safe_malloc(__func__, size);
-	for (int i = 0; i < size; ++i)
-		table[i] = NULL;
+void moveData(hashTable_ *hashTable, node_ *node) {
+	int index = hash(hashTable->capacity, node->key);
+	linkedList_ **table = hashTable->table;
+	if (table[index] == NULL)
+		table[index] = linkedList_init();
 
-	linkedList **table = hashTable->table;
-	for(int i = 0; i < hashTable->size; ++i) {
-		if(table[i] != NULL) {
-			node_ *node = table[i]->head;
-			while(node != NULL) {
-				node_insert(newTable, )
+	node_insert(table[index], node);
+}
+
+void resizeTable(hashTable_ *hashTable) {
+	int newCap = nextPrime(hashTable->size * 2);
+
+	// Tell all threads to finish and pause work on the hashtable
+	hashTable->wr_ready = false;
+	// Wait until all threads have finished their work
+	while (hashTable->num_working)
+		nanosleep((const struct timespec[]) {{0, 1000000000L}}, NULL);
+
+	linkedList_ **oldTable = hashTable->table, **newTable;
+	int oldCap = hashTable->capacity;
+
+	// Allocate space for new table and set entire array to NULL
+	hashTable->capacity = newCap;
+	newTable = hashTable->table = safe_malloc(__func__, sizeof(linkedList_ *) * newCap);
+	for (int i = 0; i < newCap; ++i)
+		newTable[i] = NULL;
+
+
+	node_ *node, *temp;
+	for (int i = 0; i < oldCap; ++i) {
+		// Only move node's in allocated linked lists
+		if (oldTable[i] != NULL) {
+			node = oldTable[i]->head;
+			while (node != NULL) {
+				// Re-insert all nodes into new table
+				temp = node->next;
+				node->next = NULL;
+				moveData(hashTable, node);
+				node = temp;
 			}
+			// Free linked list
+			if (pthread_mutex_destroy(&oldTable[i]->lock)) {
+				ERR("resizeTable(): Failed to destroy mutex\n");
+				exit(EXIT_FAILURE);
+			}
+			free(oldTable[i]);
 		}
 	}
-
-	free(hashTable->table);
-	hashTable->table = newTable;
+	// Free old table and tell all threads to continue their work
+	free(oldTable);
+	hashTable->wr_ready = true;
 }
 
 void insertData(hashTable_ *hashTable, char *key, char *data) {
-	int index = getIndex(hashTable->size, key), size = hashTable->size;
-	if ((size+1) >= hashTable->capacity*0.8) {
+	// Check if the hashtable has reached 80% capacity
+	if (hashTable->size >= hashTable->capacity * 0.8)
 		resizeTable(hashTable);
-		index = getIndex(hashTable->size, key);
-	}
+
+	int index = hash(hashTable->size, key);
 	linkedList_ **table = hashTable->table;
-	if (table[index] == NULL) {
+
+	// Check if there's a collision
+	if (table[index] == NULL)
 		table[index] = linkedList_init();
-		node_insert(table[index], key, data);
-	} else {
-		// TODO
-	}
+
+	// Insert data
+	node_insert(table[index], node_init(key, data));
 }
 
-char* getData(hashTable_ *hashTable, char *key) {
-	pthread_mutex_lock(&linkedList->lock);
-	linkedList_ *linkedList = hashTable->table[getIndex(hashTable->size, key)];
+char *getData(hashTable_ *hashTable, char *key) {
+	linkedList_ *linkedList = hashTable->table[hash(hashTable->capacity, key)];
+	// If the linkedlist is empty.
+	if (linkedList == NULL)
+		return NULL;
 
 	char *data = NULL;
-	node_ *node = linkedList->head;
+	node_ *node;
+	int retval = 1;
 
-	if (node == NULL)
-		return data;
-	else {
-		int retval;
-		while (node != NULL && (retval = strcmp(key, node->key)))
-			node = node->next;
+	pthread_mutex_lock(&linkedList->lock);
+	node = linkedList->head;
+	while (node != NULL && (retval = strcmp(key, node->key)))
+		node = node->next;
 
-		if (!retval)
-			data = node->data;
-	}
+	// If the key exists in the hash table
+	if (!retval)
+		data = node->data;
 
 	pthread_mutex_unlock(&linkedList->lock);
 
 	return data;
 }
 
-int removeData(hashTable_ *hashTable, char * key) {
-	node_ *node, *prev = hashTable->table[getIndex(hashTable->size, key)]->head;
-
+int removeData(hashTable_ *hashTable, char *key) {
+	int index = hash(hashTable->capacity, key);
+	linkedList_ *linkedList = hashTable->table[index];
+	node_ *node = linkedList->head, *prev, *temp;
+	// If linked list doesn't exist
 	if (node == NULL)
 		return 1;
 
-	while (node != NULL && strcmp(key, node->key)) {
+	pthread_mutex_lock(&linkedList->lock);
+	// Find the node to be deleted and its previous node.
+	while (node != NULL && !strcmp(key, node->key)) {
 		prev = node;
 		node = node->next;
 	}
+	if (prev == NULL) {
+		// If that's the only node in the list
+		if (node->next == NULL)
+			// Delete list since it will be empty
+			linkedList_destroy(linkedList);
+		else {
+			// Remove first node in list
+			linkedList->head = node->next;
+			free(node);
+		}
+	} else {
+		// If node doesn't exist
+		if (node == NULL)
+			return 1;
 
-	if (prev == NULL)
-		linkedList->head = node->next;
-	else
+		// Remove node
 		prev->next = node->next;
+		free(node);
+	}
+	pthread_mutex_unlock(&linkedList->lock);
 
-	free(node);
 	return 0;
 }
 
