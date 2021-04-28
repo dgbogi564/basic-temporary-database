@@ -9,7 +9,9 @@
 #define HASH 3
 #endif
 
-// TODO Make sure to check if any function returns NULL or 1 and send the appropriate error code to the client and sever the connection if needed.
+// TODO
+//  Make sure certain functions return an error code.
+//  If any function returns NULL or 1 and send the appropriate error code to the client and server the connection if needed.
 
 
 /* ============================ LINKEDLIST & NODES =============================== */
