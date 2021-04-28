@@ -178,6 +178,9 @@ void resizeTable(hashTable_ *hashTable) {
 }
 
 void insertData(hashTable_ *hashTable, char *key, char *data) {
+	while(!hashTable->wr_ready) { }
+	hashTable->num_working++;
+
 	// Check if the hashtable has reached 80% capacity
 	if (hashTable->size >= hashTable->capacity * 0.8)
 		resizeTable(hashTable);
@@ -191,33 +194,43 @@ void insertData(hashTable_ *hashTable, char *key, char *data) {
 
 	// Insert data
 	node_insert(table[index], node_init(key, data));
+
+	hashTable->num_working--;
 }
 
 char *getData(hashTable_ *hashTable, char *key) {
-	linkedList_ *linkedList = hashTable->table[hash(hashTable->capacity, key)];
-	// If the linkedlist is empty.
-	if (linkedList == NULL)
-		return NULL;
+	while(!hashTable->wr_ready) { }
+	hashTable->num_working++;
 
 	char *data = NULL;
 	node_ *node;
 	int retval = 1;
+	linkedList_ *linkedList = hashTable->table[hash(hashTable->capacity, key)];
+	// If the list is not empty.
+	if (linkedList != NULL) {
 
-	pthread_mutex_lock(&linkedList->lock);
-	node = linkedList->head;
-	while (node != NULL && (retval = strcmp(key, node->key)))
-		node = node->next;
+		pthread_mutex_lock(&linkedList->lock);
 
-	// If the key exists in the hash table
-	if (!retval)
-		data = node->data;
+		node = linkedList->head;
+		// Find the node that contains the data
+		while (node != NULL && (retval = strcmp(key, node->key)))
+			node = node->next;
 
-	pthread_mutex_unlock(&linkedList->lock);
+		// If the key exists in the hash table
+		if (!retval)
+			data = node->data;
 
+		pthread_mutex_unlock(&linkedList->lock);
+	}
+
+	hashTable->num_working--;
 	return data;
 }
 
 int removeData(hashTable_ *hashTable, char *key) {
+	while(!hashTable->wr_ready) { }
+	hashTable->num_working++;
+
 	int index = hash(hashTable->capacity, key);
 	linkedList_ *linkedList = hashTable->table[index];
 	node_ *node = linkedList->head, *prev, *temp;
@@ -252,6 +265,7 @@ int removeData(hashTable_ *hashTable, char *key) {
 	}
 	pthread_mutex_unlock(&linkedList->lock);
 
+	hashTable->num_working--;
 	return 0;
 }
 
