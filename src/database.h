@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 typedef struct node_ {
-	const char *key, *data;
+	char *key, *data;
 	struct node_ *next;
 } node_;
 

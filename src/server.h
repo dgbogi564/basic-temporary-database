@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 
 #include<string.h>
@@ -26,29 +27,32 @@
 #define HASH 10
 #endif
 
-#ifndef BUFSIZE
-#define BUFSIZE 128
+#ifndef BUFFER_SIZE
+#define BUFFER_SIZE 128
 #endif
 
-#ifndef QUEUESIZE
-#define QUEUESIZE 20
+#ifndef QUEUE_SIZE
+#define QUEUE_SIZE 20
 #endif
-
 
 typedef struct args {
 	int connection;
+	hashtable_ *database;
 	socklen_t remote_addrlen;
 	struct sockaddr_storage remote_addr;
 } args_;
 
-args_* args_init( struct sockaddr_storage remote_addr,
-		          socklen_t remote_addrlen,
-		          int connection)
+args_* args_init( int connection,
+                  hashtable_ *database,
+                  struct sockaddr_storage remote_addr,
+		          socklen_t remote_addrlen)
 {
 	args_ *args = safe_malloc(__func__, sizeof(args_));
 	args->connection = connection;
+	args->database = database;
 	args->remote_addrlen = remote_addrlen;
 	args->remote_addr = remote_addr;
+
 	return args;
 }
 
