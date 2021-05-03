@@ -13,33 +13,33 @@
 #include <stdbool.h>
 
 typedef struct node_ {
-	char *key, *data;
+	const char *key, *data;
 	struct node_ *next;
 } node_;
 
 #include <pthread.h>
-typedef struct linkedList_ {
+typedef struct linkedlist_ {
 	int size;
 	node_ *head, *rear;
 	pthread_mutex_t lock;
-} linkedList_;
+} linkedlist_;
 
-typedef struct hashTable_ {
+typedef struct hashtable_ {
 	int size, capacity, num_working;
 	volatile bool wr_ready;
-	linkedList_ **table;
-} hashTable_;
+	linkedlist_ **table;
+} hashtable_;
 
 
-hashTable_* hashTable_init();
+hashtable_* hashtable_init();
 
-void insertData(hashTable_ * hashTable, char *key, char *data);
+void insertData(hashtable_ * hashtable, char *key, char *data);
 
-char* getData(hashTable_ *hashTable, char *key);
+char* getData(hashtable_ *hashtable, char *key);
 
-int removeData(hashTable_ *hashTable, char * key);
+int removeData(hashtable_ *hashtable, char * key);
 
-void hashTable_destroy(hashTable_ *hasTable);
+void hashtable_destroy(hashtable_ *hasTable);
 
 
 #endif //P3_DATABASE_H

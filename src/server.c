@@ -1,23 +1,20 @@
 #include "server.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 
-#include <sys/socket.h>
-#include <netdb.h>
+void request_handler(void *vargs)
+{
+	args_ *args = vargs;
 
-#include<string.h>
+	// accept incoming requests and complete them?
 
 
-#include "macros.h"
-#include "database.h"
-
-
+	free(args);
+	// thread closes itself
+}
 
 int main(int argc, char *argv[])
 {
-	if(argc != 2) {
+	if(argc != 2) { // Use ports 5000-65536
 		printf("Usage: %s [port]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -60,19 +57,36 @@ int main(int argc, char *argv[])
 
 	freeaddrinfo(info);
 
-	while(1) {
+	// Initiate hashtable
+	hashtable_ *database = hashtable_init();
+	// TODO finish args struct in server.h
+	args_ *args;
+	unsigned long worker_id;
+
+	while(1) { //TODO EXTRA handle SIGs
 		connection = accept(listener, (struct sockaddr *) &remote_addr, &remote_addrlen);
 		// TODO Should we do any extra errorhandling?
-		// Failed to accept incoming connection.
+		// Failed to accept incoming connection
 		if(connection < 0) continue;
 
-		// TODO
-		//  Use getnameinfo() to convert remote_addr back to human-readable strings
-		//  Setup required info and setup threads here
+		// TODO Use getnameinfo() to convert remote_addr back to human-readable strings
+		args = args_init(remote_addr, remote_addrlen, connection);
+		// TODO Setup and pass required args
 
+		// Start thread
+		// TODO do we need to pass worker_id to the worker thread?
+		error = pthread_create(&worker_id, NULL, (void *)request_handler, (void *)args);
+		if(error) {
+			eprintf("main(): Failed to create pthread\n");
+			exit(EXIT_FAILURE);
+		}
+
+		pthread_detach(worker_id);
 	}
 
-	// TODO use getnameinfo() to convert remote_addr back to human-readable strings
+	hashtable_destroy(database);
+
+
 
 	return EXIT_SUCCESS;
 }
