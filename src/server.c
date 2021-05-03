@@ -1,12 +1,36 @@
 #include "server.h"
 
-void request_handler(void *vargs)
-{
+int parse_payload(FILE *f_recv, FILE *f_send, char **key) {
+	// Parse length of the payload
+	int len = 0;
+	char c = getc(f_recv);
+
+	while ('0' <= c && '9' >= c) {
+		len *= 10;
+		len += c - '0';
+		c = getc(f_recv);
+	}
+	if(len == 0) return 1; // malformed request
+
+	*key = safe_malloc(__func__, (sizeof(char)*len)+1);
+	for (int i = 0; i < len; ++i) {
+		c = getc(f_recv);
+	}
+	if( getc(f_recv) != '\n' ||
+	    !('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c)) {
+		return 2; // wrong length
+	}
+
+	return 0;
+}
+
+void request_handler(void *vargs) {
 	args_ *args = vargs;
 	int connection = args->connection;
-	int offset = 0, num = 0;
-	char *buffer = NULL;
-	char c, cToStr[2];
+	hashtable_ *database = args->database;
+	int error = 0;
+	char *key;
+	char c;
 
 	// Copies socket and opens orig and copy in read and write mode respectively
 	FILE *f_recv = fdopen(dup(connection), "r");
@@ -14,38 +38,58 @@ void request_handler(void *vargs)
 
 	do {
 		c = getc(f_recv);
-		if(c != EOF) {
-			if (            c == 'G' &&
-				 getc(f_recv) == 'E' &&
-				 getc(f_recv) == 'T' &&
-				 getc(f_recv) == '\n')
+		if (c != EOF) {
+			if (           c == 'G' &&
+			    getc(f_recv) == 'E' &&
+			    getc(f_recv) == 'T' &&
+			    getc(f_recv) == '\n')
 			{
-				// Parse length
-				c = getc(f_recv);
-				while( '0' <= c && '9' >= c) {
-					num *= 10;
-					num += c - '0';
-					c = getc(f_recv);
+				error = parse_payload(f_recv, f_send, &key);
+				if(error) {
+					if(error == 1) {
+						fprintf(f_send, "ERR BAD");
+					} else {
+						fprintf(f_send, "ERR LEN");
+					}
+				}
+				insertData(database, key, )
+			}
+			else if (             c == 'S' &&
+			           getc(f_recv) == 'E' &&
+			           getc(f_recv) == 'T' &&
+			           getc(f_recv) == '\n')
+			{
+				error = parse_payload(f_recv, f_send, &key);
+				if(error) {
+					if(error == 1) {
+						fprintf(f_send, "ERR BAD");
+					} else {
+						fprintf(f_send, "ERR LEN");
+					}
 				}
 
-			} else if (            c == 'S' &&
-						getc(f_recv) == 'E' &&
-					    getc(f_recv) == 'T' &&
-					    getc(f_recv) == '\n')
+			}
+			else if (             c == 'D' &&
+			           getc(f_recv) == 'E' &&
+			           getc(f_recv) == 'L' &&
+			           getc(f_recv) == '\n')
 			{
+				error = parse_payload(f_recv, f_send, &key);
+				if(error) {
+					if(error == 1) {
+						fprintf(f_send, "ERR BAD");
+					} else {
+						fprintf(f_send, "ERR LEN");
+					}
+				}
 
-			} else if (            c == 'D' &&
-						getc(f_recv) == 'E' &&
-						getc(f_recv) == 'L' &&
-						getc(f_recv) == '\n')
-			{
-
-			} else {
+			}
+			else {
 				// malformed request
 				fprintf(f_send, "ERR BAD");
 			}
 		}
-	} while(c != EOF);
+	} while (c != EOF);
 
 
 	fclose(f_recv);
@@ -53,9 +97,8 @@ void request_handler(void *vargs)
 	free(args);
 }
 
-int main(int argc, char *argv[])
-{
-	if(argc != 2) {
+int main(int argc, char *argv[]) {
+	if (argc != 2) {
 		// Use ports 5000-65536
 		printf("Usage: %s [port]\n", argv[0]);
 		exit(EXIT_FAILURE);
@@ -77,28 +120,28 @@ int main(int argc, char *argv[])
 
 	// Get port information
 	error = getaddrinfo(NULL, argv[1], &hints, &info);
-	if(error != 0) {
+	if (error != 0) {
 		eprintf("%s\n", gai_strerror(error));
 		exit(EXIT_FAILURE);
 	}
 
 	// Creates listener socket
 	listener = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
-	if(listener < 0 || connect(listener, info->ai_addr, info->ai_addrlen) == 0) {
+	if (listener < 0 || connect(listener, info->ai_addr, info->ai_addrlen) == 0) {
 		eprintf("Failed to setup listener port\n");
 		exit(EXIT_FAILURE);
 	}
 
 	// Binds the listener socket to the port
 	error = bind(listener, info->ai_addr, info->ai_addrlen);
-	if(error != 0) {
+	if (error != 0) {
 		eprintf("Failed to bind port\n");
 		exit(EXIT_FAILURE);
 	}
 
 	// Create queue for accepting incoming requests
 	error = listen(listener, QUEUE_SIZE);
-	if(error != 0) {
+	if (error != 0) {
 		eprintf("Failed to initialize connection queue\n");
 		exit(EXIT_FAILURE);
 	}
@@ -111,12 +154,12 @@ int main(int argc, char *argv[])
 	// TODO finish args struct in server.h
 	args_ *args;
 	unsigned long worker_id;
-	while(run) { //TODO EXTRA handle SIGs
+	while (run) { //TODO EXTRA handle SIGs
 		// Wait for incoming requests
 		connection = accept(listener, (struct sockaddr *) &remote_addr, &remote_addrlen);
 		// TODO Should we do any extra errorhandling?
 		// Failed to accept incoming connection
-		if(connection < 0) continue;
+		if (connection < 0) continue;
 
 		// TODO Use getnameinfo() to convert remote_addr back to human-readable strings
 		args = args_init(connection, database, remote_addr, remote_addrlen);
@@ -124,8 +167,8 @@ int main(int argc, char *argv[])
 
 		// Start thread
 		// TODO do we need to pass worker_id to the worker thread?
-		error = pthread_create(&worker_id, NULL, (void *)request_handler, (void *)args);
-		if(error) {
+		error = pthread_create(&worker_id, NULL, (void *) request_handler, (void *) args);
+		if (error) {
 			eprintf("main(): Failed to create pthread\n");
 			exit(EXIT_FAILURE);
 		}
