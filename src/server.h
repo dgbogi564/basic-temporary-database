@@ -14,4 +14,12 @@
 #define HASH 10
 #endif
 
+#ifndef BUFSIZE
+#define BUFSIZE 128
+#endif
+
+#ifndef QUEUESIZE
+#define QUEUESIZE 20
+#endif
+
 #endif //P3_SERVER_H
