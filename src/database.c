@@ -16,7 +16,8 @@
 
 /* ============================ LINKEDLIST & NODES =============================== */
 
-node_ *node_init(char *key, char *data) {
+node_ *node_init(char *key, char *data)
+{
 	node_ *node = safe_malloc(__func__, sizeof(node_));
 	node->key = key;
 	node->data = data;
@@ -24,19 +25,21 @@ node_ *node_init(char *key, char *data) {
 	return node;
 }
 
-linkedList_ *linkedList_init() {
+linkedList_ *linkedList_init()
+{
 	linkedList_ *linkedList = safe_malloc(__func__, sizeof(linkedList_));
 	linkedList->size = 0;
 	linkedList->head = NULL;
 	linkedList->rear = NULL;
 	if (pthread_mutex_init(&linkedList->lock, NULL)) {
-		ERR("linkedList_init(): Failed to initialize mutex\n");
+		eprintf("linkedList_init(): Failed to initialize mutex\n");
 		exit(EXIT_FAILURE);
 	}
 	return linkedList;
 }
 
-void node_insert(linkedList_ *linkedList, node_ *newNode) {
+void node_insert(linkedList_ *linkedList, node_ *newNode)
+{
 	pthread_mutex_lock(&linkedList->lock);
 
 	node_ *inFront = linkedList->head, *prev = NULL;
@@ -71,7 +74,8 @@ void node_insert(linkedList_ *linkedList, node_ *newNode) {
 	pthread_mutex_unlock(&linkedList->lock);
 }
 
-void linkedList_destroy(linkedList_ *linkedList) {
+void linkedList_destroy(linkedList_ *linkedList)
+{
 	node_ *node = linkedList->head, *temp;
 	while (node != NULL) {
 		temp = node->next;
@@ -79,7 +83,7 @@ void linkedList_destroy(linkedList_ *linkedList) {
 		node = temp;
 	}
 	if (pthread_mutex_destroy(&linkedList->lock)) {
-		ERR("linkedList_destroy(): Failed to destroy mutex\n");
+		eprintf("linkedList_destroy(): Failed to destroy mutex\n");
 		exit(EXIT_FAILURE);
 	}
 	free(linkedList);
@@ -87,7 +91,8 @@ void linkedList_destroy(linkedList_ *linkedList) {
 
 /* ================================== HASHTABLE ================================= */
 
-hashTable_ *hashTable_init() {
+hashTable_ *hashTable_init()
+{
 	hashTable_ *hashTable = safe_malloc(__func__, sizeof(hashTable_));
 	hashTable->size = 0;
 	hashTable->capacity = 13;
@@ -100,7 +105,8 @@ hashTable_ *hashTable_init() {
 	return hashTable;
 }
 
-int hash(int size, char *key) {
+int hash(int size, char *key)
+{
 	int hash;
 	for (int i = 0; i < strlen(key); ++i)
 		hash = HASH * 31 + key[i];
@@ -108,7 +114,8 @@ int hash(int size, char *key) {
 	return hash % size;
 }
 
-int nextPrime(int n) {
+int nextPrime(int n)
+{
 	if (n < 2) return n;
 
 	bool isPrime = false;
@@ -126,7 +133,8 @@ int nextPrime(int n) {
 	return n;
 }
 
-void moveData(hashTable_ *hashTable, node_ *node) {
+void moveData(hashTable_ *hashTable, node_ *node)
+{
 	int index = hash(hashTable->capacity, node->key);
 	linkedList_ **table = hashTable->table;
 	if (table[index] == NULL)
@@ -135,7 +143,8 @@ void moveData(hashTable_ *hashTable, node_ *node) {
 	node_insert(table[index], node);
 }
 
-void resizeTable(hashTable_ *hashTable) {
+void resizeTable(hashTable_ *hashTable)
+{
 	int newCap = nextPrime(hashTable->size * 2);
 
 	// Tell all threads to finish and pause work on the hashtable
@@ -168,7 +177,7 @@ void resizeTable(hashTable_ *hashTable) {
 			}
 			// Free linked list
 			if (pthread_mutex_destroy(&oldTable[i]->lock)) {
-				ERR("resizeTable(): Failed to destroy mutex\n");
+				eprintf("resizeTable(): Failed to destroy mutex\n");
 				exit(EXIT_FAILURE);
 			}
 			free(oldTable[i]);
@@ -179,7 +188,8 @@ void resizeTable(hashTable_ *hashTable) {
 	hashTable->wr_ready = true;
 }
 
-void insertData(hashTable_ *hashTable, char *key, char *data) {
+void insertData(hashTable_ *hashTable, char *key, char *data)
+{
 	while(!hashTable->wr_ready) { }
 	hashTable->num_working++;
 
@@ -200,7 +210,8 @@ void insertData(hashTable_ *hashTable, char *key, char *data) {
 	hashTable->num_working--;
 }
 
-char *getData(hashTable_ *hashTable, char *key) {
+char *getData(hashTable_ *hashTable, char *key)
+{
 	while(!hashTable->wr_ready) { }
 	hashTable->num_working++;
 
@@ -229,7 +240,8 @@ char *getData(hashTable_ *hashTable, char *key) {
 	return data;
 }
 
-int removeData(hashTable_ *hashTable, char *key) {
+int removeData(hashTable_ *hashTable, char *key)
+{
 	while(!hashTable->wr_ready) { }
 	hashTable->num_working++;
 
@@ -271,7 +283,8 @@ int removeData(hashTable_ *hashTable, char *key) {
 	return 0;
 }
 
-void hashTable_destroy(hashTable_ *hashTable) {
+void hashTable_destroy(hashTable_ *hashTable)
+{
 	linkedList_ **table = hashTable->table;
 	for (int i = 0; i < hashTable->capacity; ++i) {
 		if (table[i] != NULL)
