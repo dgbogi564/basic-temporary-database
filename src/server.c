@@ -52,7 +52,8 @@ void request_handler(void *vargs) {
 						fprintf(f_send, "ERR LEN");
 					}
 				}
-				insertData(database, key, )
+				// TODO whats the format for parsing values?
+				insertData(database, key, );
 			}
 			else if (             c == 'S' &&
 			           getc(f_recv) == 'E' &&
