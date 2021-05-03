@@ -13,12 +13,12 @@
 #include "macros.h"
 #include "database.h"
 
-#define BUFSIZE 128
+
 
 int main(int argc, char *argv[])
 {
-	if(argc != 3) {
-		printf("Usage: %s [host] [port]\n", argv[0]);
+	if(argc != 2) {
+		printf("Usage: %s [port]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 
@@ -34,11 +34,44 @@ int main(int argc, char *argv[])
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	error = getaddrinfo(NULL, argv[2], &hints, &info);
+	error = getaddrinfo(NULL, argv[1], &hints, &info);
 	if(error != 0) {
 		eprintf("%s\n", gai_strerror(error));
 		exit(EXIT_FAILURE);
 	}
+
+	listener = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
+	if(listener < 0 || connect(listener, info->ai_addr, info->ai_addrlen) == 0) {
+		eprintf("Failed to setup listener port\n");
+		exit(EXIT_FAILURE);
+	}
+
+	error = bind(listener, info->ai_addr, info->ai_addrlen);
+	if(error != 0) {
+		eprintf("Failed to bind port\n");
+		exit(EXIT_FAILURE);
+	}
+
+	error = listen(listener, QUEUESIZE);
+	if(error != 0) {
+		eprintf("Failed to initialize connection queue\n");
+		exit(EXIT_FAILURE);
+	}
+
+	freeaddrinfo(info);
+
+	while(1) {
+		connection = accept(listener, (struct sockaddr *) &remote_addr, &remote_addrlen);
+		// TODO Should we do any extra errorhandling?
+		// Failed to accept incoming connection.
+		if(connection < 0) continue;
+
+		// TODO
+		//  Use getnameinfo() to convert remote_addr back to human-readable strings
+		//  Setup required info and setup threads here
+	}
+
+	// TODO use getnameinfo() to convert remote_addr back to human-readable strings
 
 	return EXIT_SUCCESS;
 }
