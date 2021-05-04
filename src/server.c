@@ -20,23 +20,19 @@ int parse_payload(FILE *f_recv, char **key, char **data) {
 		else if ('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c) {
 			*key[i] = c;
 			*key[i+1] = '\0';
-		} else if(c == EOF) {
-			// wrong length
-			return 2;
 		} else {
 			//malformed request
 			return 1;
 		}
 	}
 	i++;
-
 	*data = safe_malloc(__func__, (sizeof(char)*len-i)+1);
 	for(j = 0; j+i < len; ++j) {
 		c = getc(f_recv);
 		if ('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c) {
 			*data[j] = c;
 			*data[j+1] = '\0';
-		} else if(c == '\n' || c == EOF) {
+		} else if(c == '\n') {
 			// wrong length
 			return 2;
 		} else {
@@ -46,7 +42,7 @@ int parse_payload(FILE *f_recv, char **key, char **data) {
 	}
 
 	// wrong length
-	if(c != EOF) return 2;
+	if(c != '\n') return 2;
 
 	return 0;
 }
@@ -60,8 +56,8 @@ void request_handler(void *vargs) {
 	char c;
 
 	// Copies socket and opens orig and copy in read and write mode respectively
-	FILE *f_recv = fdopen(dup(connection), "r");
-	FILE *f_send = fdopen(connection, "w");
+	 f_recv = fdopen(dup(connection), "r");
+	 f_send = fdopen(connection, "w");
 
 	do {
 		c = getc(f_recv);
@@ -74,9 +70,9 @@ void request_handler(void *vargs) {
 				error = parse_payload(f_recv, &key, &data);
 				if(error) {
 					if(error == 1) {
-						fprintf(f_send, "ERR BAD");
+						fprintf(f_send, "ERR BAD\n");
 					} else {
-						fprintf(f_send, "ERR LEN");
+						fprintf(f_send, "ERR LEN\n");
 					}
 				}
 				// GET data from key
@@ -93,9 +89,9 @@ void request_handler(void *vargs) {
 				error = parse_payload(f_recv, &key, &data);
 				if(error) {
 					if(error == 1) {
-						fprintf(f_send, "ERR BAD");
+						fprintf(f_send, "ERR BAD\n");
 					} else {
-						fprintf(f_send, "ERR LEN");
+						fprintf(f_send, "ERR LEN\n");
 					}
 				}
 				// TODO whats the format for parsing values?
@@ -111,9 +107,9 @@ void request_handler(void *vargs) {
 				error = parse_payload(f_recv, &key, &data);
 				if(error) {
 					if(error == 1) {
-						fprintf(f_send, "ERR BAD");
+						fprintf(f_send, "ERR BAD\n");
 					} else {
-						fprintf(f_send, "ERR LEN");
+						fprintf(f_send, "ERR LEN\n");
 					}
 				}
 				// DEL key
