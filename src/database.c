@@ -241,7 +241,7 @@ char *getData(hashtable_ *hashtable, char *key) {
 	return data;
 }
 
-int removeData(hashtable_ *hashtable, char *key) {
+int delData(hashtable_ *hashtable, char *key) {
 	while (!hashtable->wr_ready) {
 		// Sleep for 0.1 second(s)
 		nanosleep((const struct timespec[]) {{0, 100000000L}}, NULL);

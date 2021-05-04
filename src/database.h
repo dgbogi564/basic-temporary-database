@@ -37,7 +37,7 @@ void insertData(hashtable_ * hashtable, char *key, char *data);
 
 char* getData(hashtable_ *hashtable, char *key);
 
-int removeData(hashtable_ *hashtable, char * key);
+int delData(hashtable_ *hashtable, char * key);
 
 void hashtable_destroy(hashtable_ *hasTable);
 

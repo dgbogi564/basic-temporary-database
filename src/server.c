@@ -1,9 +1,10 @@
 #include "server.h"
 
-int parse_payload(FILE *f_recv, FILE *f_send, char **key) {
+int parse_payload(FILE *f_recv, char **key, char **data) {
 	// Parse length of the payload
+	int i, j;
 	int len = 0;
-	char c = getc(f_recv);
+	char c = getc(f_recv), temp;
 
 	while ('0' <= c && '9' >= c) {
 		len *= 10;
@@ -13,13 +14,39 @@ int parse_payload(FILE *f_recv, FILE *f_send, char **key) {
 	if(len == 0) return 1; // malformed request
 
 	*key = safe_malloc(__func__, (sizeof(char)*len)+1);
-	for (int i = 0; i < len; ++i) {
+	for (i = 0; i < len; ++i) {
 		c = getc(f_recv);
+		if(c == '\n') break;
+		else if ('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c) {
+			*key[i] = c;
+			*key[i+1] = '\0';
+		} else if(c == EOF) {
+			// wrong length
+			return 2;
+		} else {
+			//malformed request
+			return 1;
+		}
 	}
-	if( getc(f_recv) != '\n' ||
-	    !('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c)) {
-		return 2; // wrong length
+	i++;
+
+	*data = safe_malloc(__func__, (sizeof(char)*len-i)+1);
+	for(j = 0; j+i < len; ++j) {
+		c = getc(f_recv);
+		if ('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c) {
+			*data[j] = c;
+			*data[j+1] = '\0';
+		} else if(c == '\n' || c == EOF) {
+			// wrong length
+			return 2;
+		} else {
+			//malformed request
+			return 1;
+		}
 	}
+
+	// wrong length
+	if(c != EOF) return 2;
 
 	return 0;
 }
@@ -29,7 +56,7 @@ void request_handler(void *vargs) {
 	int connection = args->connection;
 	hashtable_ *database = args->database;
 	int error = 0;
-	char *key;
+	char *key, *data;
 	char c;
 
 	// Copies socket and opens orig and copy in read and write mode respectively
@@ -44,7 +71,26 @@ void request_handler(void *vargs) {
 			    getc(f_recv) == 'T' &&
 			    getc(f_recv) == '\n')
 			{
-				error = parse_payload(f_recv, f_send, &key);
+				error = parse_payload(f_recv, &key, &data);
+				if(error) {
+					if(error == 1) {
+						fprintf(f_send, "ERR BAD");
+					} else {
+						fprintf(f_send, "ERR LEN");
+					}
+				}
+				// GET data from key
+				data = getData(database, key);
+				if(data == NULL) {
+					// error
+				}
+			}
+			else if (             c == 'S' &&
+			           getc(f_recv) == 'E' &&
+			           getc(f_recv) == 'T' &&
+			           getc(f_recv) == '\n')
+			{
+				error = parse_payload(f_recv, &key, &data);
 				if(error) {
 					if(error == 1) {
 						fprintf(f_send, "ERR BAD");
@@ -53,29 +99,16 @@ void request_handler(void *vargs) {
 					}
 				}
 				// TODO whats the format for parsing values?
-				insertData(database, key, );
-			}
-			else if (             c == 'S' &&
-			           getc(f_recv) == 'E' &&
-			           getc(f_recv) == 'T' &&
-			           getc(f_recv) == '\n')
-			{
-				error = parse_payload(f_recv, f_send, &key);
-				if(error) {
-					if(error == 1) {
-						fprintf(f_send, "ERR BAD");
-					} else {
-						fprintf(f_send, "ERR LEN");
-					}
-				}
-
+				// SET key to data
+				// TODO insertData error checking?
+				error = insertData(database, key, data);
 			}
 			else if (             c == 'D' &&
 			           getc(f_recv) == 'E' &&
 			           getc(f_recv) == 'L' &&
 			           getc(f_recv) == '\n')
 			{
-				error = parse_payload(f_recv, f_send, &key);
+				error = parse_payload(f_recv, &key, &data);
 				if(error) {
 					if(error == 1) {
 						fprintf(f_send, "ERR BAD");
@@ -83,7 +116,8 @@ void request_handler(void *vargs) {
 						fprintf(f_send, "ERR LEN");
 					}
 				}
-
+				// DEL key
+				error = delData(database, key);
 			}
 			else {
 				// malformed request
