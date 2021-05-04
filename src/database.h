@@ -33,7 +33,7 @@ typedef struct hashtable_ {
 
 hashtable_* hashtable_init();
 
-void insertData(hashtable_ * hashtable, char *key, char *data);
+int insertData(hashtable_ * hashtable, char *key, char *data);
 
 char* getData(hashtable_ *hashtable, char *key);
 
