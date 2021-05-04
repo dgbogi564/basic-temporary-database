@@ -38,27 +38,28 @@ int parse_payload(char **key, char **data) {
 		len += c - '0';
 		c = getc(f_recv);
 	}
-	if(len == 0) return 1; // malformed request
+	if(len < 0) return 1; // malformed request
 
-	*key = safe_malloc(__func__, (sizeof(char)*len)+2);
+	(*key) = safe_malloc(__func__, (sizeof(char)*len)+2);
+	memset((*key), 0, (sizeof(char)*len)+2);
 	for (i = 0; i < len; ++i) {
 		c = getc(f_recv);
 		if(c == '\n') break;
-		else if ('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c) {
-			*key[i] = c;
-			*key[i+1] = '\0';
+		else if (('a' <= c && 'z' <= c) || ('A' <= c && 'Z' <= c)) {
+			(*key)[i] = c;
+			(*key)[i+1] = '\0';
 		} else {
 			//malformed request
 			return 1;
 		}
-	}
-	i++;
-	*data = safe_malloc(__func__, (sizeof(char)*len-i)+2);
+	} i++;
+	(*data) = safe_malloc(__func__, (sizeof(char)*len-i)+2);
+	memset((*data), 0, (sizeof(char)*len)+2);
 	for(j = 0; j+i < len; ++j) {
 		c = getc(f_recv);
-		if ('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c) {
-			*data[j] = c;
-			*data[j+1] = '\0';
+		if (('a' <= c && c <= 'z' ) || ('A' <= c && c <= 'Z' )) {
+			(*data)[j] = c;
+			(*data)[j+1] = '\0';
 		} else if(c == '\n') {
 			// wrong length
 			return 2;
@@ -79,7 +80,7 @@ void request_handler(void *vargs) {
 	int connection = args->connection;
 	hashtable_ *database = args->database;
 	int error;
-	char *key, *data;
+	char *key = NULL, *data = NULL;
 	char c;
 
 	// Copies socket and opens orig and copy in read and write mode respectively

@@ -100,12 +100,12 @@ hashtable_ *hashtable_init() {
 	return hashtable;
 }
 
-int hash(int size, char *key) {
+int hash(int capacity, char *key) {
 	int hash;
 	for (int i = 0; i < strlen(key); ++i) {
 		hash = HASH * 31 + key[i];
 	}
-	return hash % size;
+	return hash % capacity;
 }
 
 int nextPrime(int n) {
@@ -194,7 +194,7 @@ void insertData(hashtable_ *hashtable, char *key, char *data) {
 		resizeTable(hashtable);
 	}
 
-	int index = hash(hashtable->size, key);
+	int index = hash(hashtable->capacity, key);
 	linkedlist_ **table = hashtable->table;
 
 	// Check if there's a collision
