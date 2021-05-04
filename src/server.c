@@ -1,5 +1,31 @@
 #include "server.h"
 
+/* ================== INITIALIZE LOCAL THREAD VARIABLES ================= */
+
+__thread FILE *f_recv = NULL;
+__thread FILE *f_send = NULL;
+
+/* ================================ ARGS ================================ */
+
+
+args_* args_init( int connection,
+                  hashtable_ *database,
+                  struct sockaddr_storage remote_addr,
+                  socklen_t remote_addrlen)
+{
+	args_ *args = safe_malloc(__func__, sizeof(args_));
+	args->connection = connection;
+	args->database = database;
+	args->remote_addrlen = remote_addrlen;
+	args->remote_addr = remote_addr;
+
+	return args;
+}
+
+
+/* =========================== MAIN FUNCTIONS =========================== */
+
+
 int parse_payload(char **key, char **data) {
 	// Parse length of the payload
 	int i, j;
@@ -140,6 +166,10 @@ void request_handler(void *vargs) {
 	fclose(f_send);
 	free(args);
 }
+
+
+/* =============================== DRIVER =============================== */
+
 
 int main(int argc, char *argv[]) {
 	if (argc != 2) {

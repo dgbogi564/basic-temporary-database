@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "server.h"
 
 #define eprintf(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 

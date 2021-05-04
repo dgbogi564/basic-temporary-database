@@ -1,8 +1,7 @@
 #include "database.h"
+#include "server.h"
 
 #include <string.h>
-
-#include "macros.h"
 
 #ifndef HASH
 #define HASH 3

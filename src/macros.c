@@ -1,4 +1,5 @@
 #include "macros.h"
+#include "server.h"
 
 void* safe_malloc(const char func_name[], size_t size)
 {

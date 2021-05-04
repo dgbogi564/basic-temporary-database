@@ -31,6 +31,8 @@ typedef struct hashtable_ {
 } hashtable_;
 
 
+#include "macros.h"
+
 hashtable_* hashtable_init();
 
 void insertData(hashtable_ * hashtable, char *key, char *data);

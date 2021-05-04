@@ -20,8 +20,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include "macros.h"
-#include "database.h"
+#ifndef REQUEST_HANDLING_INCLUDED
+#define REQUEST_HANDLING_INCLUDED
+extern __thread FILE *f_recv;
+extern __thread FILE *f_send;
+#endif
 
 #ifndef HASH
 #define HASH 10
@@ -35,28 +38,14 @@
 #define QUEUE_SIZE 20
 #endif
 
+#include "macros.h"
+#include "database.h"
+
 typedef struct args {
 	int connection;
 	hashtable_ *database;
 	socklen_t remote_addrlen;
 	struct sockaddr_storage remote_addr;
 } args_;
-
-args_* args_init( int connection,
-                  hashtable_ *database,
-                  struct sockaddr_storage remote_addr,
-		          socklen_t remote_addrlen)
-{
-	args_ *args = safe_malloc(__func__, sizeof(args_));
-	args->connection = connection;
-	args->database = database;
-	args->remote_addrlen = remote_addrlen;
-	args->remote_addr = remote_addr;
-
-	return args;
-}
-
-__thread FILE *f_recv = NULL;
-__thread FILE *f_send = NULL;
 
 #endif //P3_SERVER_H
