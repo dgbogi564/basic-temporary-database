@@ -14,6 +14,7 @@ args_* args_init( int connection,
                   socklen_t remote_addrlen)
 {
 	args_ *args = safe_malloc(__func__, sizeof(args_));
+	args->terminate = 0;
 	args->connection = connection;
 	args->database = database;
 	args->remote_addrlen = remote_addrlen;
@@ -39,7 +40,7 @@ int parse_payload(char **key, char **data) {
 	}
 	if(len == 0) return 1; // malformed request
 
-	*key = safe_malloc(__func__, (sizeof(char)*len)+1);
+	*key = safe_malloc(__func__, (sizeof(char)*len)+2);
 	for (i = 0; i < len; ++i) {
 		c = getc(f_recv);
 		if(c == '\n') break;
@@ -52,7 +53,7 @@ int parse_payload(char **key, char **data) {
 		}
 	}
 	i++;
-	*data = safe_malloc(__func__, (sizeof(char)*len-i)+1);
+	*data = safe_malloc(__func__, (sizeof(char)*len-i)+2);
 	for(j = 0; j+i < len; ++j) {
 		c = getc(f_recv);
 		if ('a' <= c && 'z' <= c || 'A' <= c && 'Z' <= c) {
@@ -160,7 +161,7 @@ void request_handler(void *vargs) {
 				fprintf(f_send, "ERR BAD\n");
 			}
 		}
-	} while (c != EOF);
+	} while (!args->terminate);
 
 	fclose(f_recv);
 	fclose(f_send);

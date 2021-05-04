@@ -42,6 +42,7 @@ extern __thread FILE *f_send;
 #include "database.h"
 
 typedef struct args {
+	bool terminate;
 	int connection;
 	hashtable_ *database;
 	socklen_t remote_addrlen;
