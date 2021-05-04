@@ -241,7 +241,9 @@ char *getData(hashtable_ *hashtable, char *key) {
 	return data;
 }
 
-int delData(hashtable_ *hashtable, char *key) {
+char* delData(hashtable_ *hashtable, char *key) {
+	char *data = NULL;
+
 	while (!hashtable->wr_ready) {
 		// Sleep for 0.1 second(s)
 		nanosleep((const struct timespec[]) {{0, 100000000L}}, NULL);
@@ -252,10 +254,10 @@ int delData(hashtable_ *hashtable, char *key) {
 	int index = hash(hashtable->capacity, key);
 	linkedlist_ *linkedlist = hashtable->table[index];
 	// If linkedlist is NULL
-	if (linkedlist == NULL) return 1;
+	if (linkedlist == NULL) return NULL;
 	node_ *node = linkedlist->head, *prev;
 	// If the nodes are NULL
-	if (node == NULL) return 1;
+	if (node == NULL) return NULL;
 
 	pthread_mutex_lock(&linkedlist->lock);
 	// Find the node to be deleted and its previous node.
@@ -263,28 +265,28 @@ int delData(hashtable_ *hashtable, char *key) {
 		prev = node;
 		node = node->next;
 	}
+	if(node == NULL) return NULL;
+	data = node->data;
+
 	if (prev == NULL) {
-		// If that's the only node in the list
+		// If node is the only entry in the list
 		if (node->next == NULL) {
-			// Delete list since it will be empty
+			// Delete list since it's empty
 			linkedlist_destroy(linkedlist);
 		} else {
-			// Remove first node in list
+			// Remove the first node in list
 			linkedlist->head = node->next;
 			free(node);
 		}
 	} else {
-		// If node doesn't exist
-		if (node == NULL) return 1;
-
-		// Remove node
+		// Remove node from the list
 		prev->next = node->next;
 		free(node);
 	}
 	pthread_mutex_unlock(&linkedlist->lock);
 
 	hashtable->num_working--;
-	return 0;
+	return data;
 }
 
 void table_destroy(linkedlist_ **table, int capacity) {

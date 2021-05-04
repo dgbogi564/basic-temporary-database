@@ -1,10 +1,10 @@
 #include "server.h"
 
-int parse_payload(FILE *f_recv, char **key, char **data) {
+int parse_payload(char **key, char **data) {
 	// Parse length of the payload
 	int i, j;
 	int len = 0;
-	char c = getc(f_recv), temp;
+	char c = getc(f_recv);
 
 	while ('0' <= c && '9' >= c) {
 		len *= 10;
@@ -51,7 +51,7 @@ void request_handler(void *vargs) {
 	args_ *args = vargs;
 	int connection = args->connection;
 	hashtable_ *database = args->database;
-	int error = 0;
+	int error;
 	char *key, *data;
 	char c;
 
@@ -67,7 +67,7 @@ void request_handler(void *vargs) {
 			    getc(f_recv) == 'T' &&
 			    getc(f_recv) == '\n')
 			{
-				error = parse_payload(f_recv, &key, &data);
+				error = parse_payload(&key, &data);
 				if(error) {
 					if(error == 1) {
 						fprintf(f_send, "ERR BAD\n");
@@ -77,8 +77,12 @@ void request_handler(void *vargs) {
 				}
 				// GET data from key
 				data = getData(database, key);
-				if(data == NULL) {
-					// error
+				if (data == NULL) {
+					// Key doesn't exist
+					fprintf(f_send,"KNF\n");
+				} else {
+					// Success
+					fprintf(f_send, "OKG\n%lu\n%s\n", strlen(data), data);
 				}
 			}
 			else if (             c == 'S' &&
@@ -86,7 +90,7 @@ void request_handler(void *vargs) {
 			           getc(f_recv) == 'T' &&
 			           getc(f_recv) == '\n')
 			{
-				error = parse_payload(f_recv, &key, &data);
+				error = parse_payload(&key, &data);
 				if(error) {
 					if(error == 1) {
 						fprintf(f_send, "ERR BAD\n");
@@ -97,31 +101,40 @@ void request_handler(void *vargs) {
 				// TODO whats the format for parsing values?
 				// SET key to data
 				// TODO insertData error checking?
-				error = insertData(database, key, data);
+				insertData(database, key, data);
+				fprintf(f_send, "OKS\n");
 			}
 			else if (             c == 'D' &&
 			           getc(f_recv) == 'E' &&
 			           getc(f_recv) == 'L' &&
 			           getc(f_recv) == '\n')
 			{
-				error = parse_payload(f_recv, &key, &data);
+				error = parse_payload(&key, &data);
 				if(error) {
 					if(error == 1) {
+						// Malformed request
 						fprintf(f_send, "ERR BAD\n");
 					} else {
+						// Wrong length
 						fprintf(f_send, "ERR LEN\n");
 					}
 				}
-				// DEL key
-				error = delData(database, key);
+				// TODO DEL key
+				data = delData(database, key);
+				if(data == NULL) {
+					// Key doesn't exist
+					fprintf(f_send,"KNF\n");
+				} else {
+					// Success
+					fprintf(f_send, "OKD\n%lu\n%s\n", strlen(data), data);
+				}
 			}
 			else {
-				// malformed request
-				fprintf(f_send, "ERR BAD");
+				// Malformed request
+				fprintf(f_send, "ERR BAD\n");
 			}
 		}
 	} while (c != EOF);
-
 
 	fclose(f_recv);
 	fclose(f_send);
@@ -141,7 +154,7 @@ int main(int argc, char *argv[]) {
 	int listener;
 	int connection;
 	int error;
-	volatile bool run;
+	volatile bool run = 1;
 
 	// Provide additional info about what type of connection we want to open
 	memset(&hints, 0, sizeof(hints));

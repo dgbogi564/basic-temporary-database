@@ -33,11 +33,11 @@ typedef struct hashtable_ {
 
 hashtable_* hashtable_init();
 
-int insertData(hashtable_ * hashtable, char *key, char *data);
+void insertData(hashtable_ * hashtable, char *key, char *data);
 
 char* getData(hashtable_ *hashtable, char *key);
 
-int delData(hashtable_ *hashtable, char * key);
+char* delData(hashtable_ *hashtable, char * key);
 
 void table_destroy(linkedlist_ **table, int capacity);
 
