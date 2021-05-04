@@ -56,4 +56,7 @@ args_* args_init( int connection,
 	return args;
 }
 
+__thread FILE *f_recv = NULL;
+__thread FILE *f_send = NULL;
+
 #endif //P3_SERVER_H

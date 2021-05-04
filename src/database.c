@@ -1,7 +1,6 @@
 #include "database.h"
 
 #include <string.h>
-#include <unistd.h>
 
 #include "macros.h"
 
@@ -31,6 +30,7 @@ linkedlist_ *linkedlist_init() {
 	linkedlist->rear = NULL;
 	if (pthread_mutex_init(&linkedlist->lock, NULL)) {
 		eprintf("linkedlist_init(): Failed to initialize mutex\n");
+		fprintf(f_send, "ERR SRV\n");
 		exit(EXIT_FAILURE);
 	}
 	return linkedlist;
@@ -165,8 +165,8 @@ void resizeTable(hashtable_ *hashtable) {
 			while (node != NULL) {
 				// Re-insert all nodes into new table
 				temp = node->next;
-				node->next = NULL;
 				moveData(hashtable, node);
+				node->next = NULL;
 				node = temp;
 			}
 			// Free linked list
@@ -253,7 +253,7 @@ int delData(hashtable_ *hashtable, char *key) {
 	linkedlist_ *linkedlist = hashtable->table[index];
 	// If linkedlist is NULL
 	if (linkedlist == NULL) return 1;
-	node_ *node = linkedlist->head, *prev, *temp;
+	node_ *node = linkedlist->head, *prev;
 	// If the nodes are NULL
 	if (node == NULL) return 1;
 
@@ -287,12 +287,16 @@ int delData(hashtable_ *hashtable, char *key) {
 	return 0;
 }
 
-void hashtable_destroy(hashtable_ *hashtable) {
-	linkedlist_ **table = hashtable->table;
-	for (int i = 0; i < hashtable->capacity; ++i) {
+void table_destroy(linkedlist_ **table, int capacity) {
+	for (int i = 0; i < capacity; ++i) {
 		if (table[i] != NULL) {
 			linkedlist_destroy(table[i]);
 		}
 	}
+	free(table);
+}
+
+void hashtable_destroy(hashtable_ *hashtable) {
+	table_destroy(hashtable->table, hashtable->capacity);
 	free(hashtable);
 }

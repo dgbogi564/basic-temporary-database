@@ -39,6 +39,8 @@ char* getData(hashtable_ *hashtable, char *key);
 
 int delData(hashtable_ *hashtable, char * key);
 
+void table_destroy(linkedlist_ **table, int capacity);
+
 void hashtable_destroy(hashtable_ *hasTable);
 
 
